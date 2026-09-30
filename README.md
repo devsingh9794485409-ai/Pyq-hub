@@ -95,6 +95,7 @@ npm run dev
 | `VITE_API_URL` | Backend API base URL |
 
 See `.env.example` files in each folder for reference.
+Follow us
 
 ---
 
