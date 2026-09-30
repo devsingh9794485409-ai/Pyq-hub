@@ -1,0 +1,72 @@
+// src/components/FilterBar.jsx
+const TYPES = [
+  { value: '', label: 'All' },
+  { value: 'PYQ', label: 'PYQs' },
+  { value: 'Notes', label: 'Notes' },
+  { value: 'Sessional', label: 'Sessional' },
+];
+
+const SORTS = [
+  { value: 'recent', label: 'Newest' },
+  { value: 'top', label: 'Most upvoted' },
+  { value: 'oldest', label: 'Oldest' },
+];
+
+const FilterBar = ({ type, onTypeChange, sort, onSortChange, search, onSearchChange }) => (
+  <div className="space-y-3">
+    <div className="relative">
+      <svg
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fillRule="evenodd"
+          d="M9 3.5a5.5 5.5 0 1 0 3.4 9.83l3.14 3.13a.75.75 0 1 0 1.06-1.06l-3.13-3.14A5.5 5.5 0 0 0 9 3.5ZM5 9a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z"
+          clipRule="evenodd"
+        />
+      </svg>
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder="Search by title…"
+        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-500"
+      />
+    </div>
+
+    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      {TYPES.map((t) => (
+        <button
+          key={t.value}
+          type="button"
+          onClick={() => onTypeChange(t.value)}
+          className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+            type === t.value
+              ? 'bg-brand-600 text-white'
+              : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+
+      <div className="ml-auto shrink-0">
+        <select
+          value={sort}
+          onChange={(e) => onSortChange(e.target.value)}
+          aria-label="Sort resources"
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600"
+        >
+          {SORTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  </div>
+);
+
+export default FilterBar;

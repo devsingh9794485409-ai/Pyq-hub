@@ -1,0 +1,15 @@
+Har folder ka kaam kya hai:
+api/ – Backend se baat karne ke liye axios calls aur API functions yahan rahenge.
+
+components/ – Reusable UI components (Navbar, ResourceCard, etc.).
+
+components/ui/ – Sabse chhote reusable components (Button, Input, Loader, Modal, EmptyState).
+
+context/ – React Context (AuthContext) yahan rahega.
+
+hooks/ – Custom hooks (jaise useApi).
+
+pages/ – Alag-alag screens (Login, Signup, Home, SubjectPage, etc.).
+
+utils/ – Helper functions (jaise date format karna, initials nikalna).
+--------------------------------------------------------------------------------------------------------
