@@ -10,13 +10,15 @@ import Button from '../components/ui/Button.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { useApi } from '../hooks/useApi.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useLocalStorage } from '../hooks/useLocalStorage.js';
 
 const SubjectPage = () => {
   const { subjectId } = useParams();
   const {  refreshUser } = useAuth();
 
   const [type, setType] = useState('');
-  const [sort, setSort] = useState('recent');
+  // Persist the user's preferred sort order across page navigations.
+  const [sort, setSort] = useLocalStorage('pyqhub:sort', 'recent');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [uploadOpen, setUploadOpen] = useState(false);
