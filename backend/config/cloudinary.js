@@ -22,10 +22,15 @@ export const uploadBuffer = (buffer, opts = {}) =>
     stream.end(buffer);
   });
 
-export const destroyAsset = async (publicId) => {
+export const destroyAsset = async (publicId, resourceType = 'image') => {
   if (!publicId) return;
   try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: 'auto' });
+    const type = !resourceType || resourceType === 'auto' ? 'image' : resourceType;
+    const res = await cloudinary.uploader.destroy(publicId, { resource_type: type });
+    if (res?.result === 'not found' && type === 'image') {
+      await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    }
+    return res;
   } catch (err) {
     console.warn('Cloudinary destroy failed:', err.message);
   }

@@ -34,7 +34,10 @@ export const getResources = asyncHandler(async (req, res) => {
     if (!RESOURCE_TYPES.includes(type)) throw ApiError.badRequest('Invalid resource type');
     filter.type = type;
   }
-  if (q) filter.title = { $regex: String(q).trim(), $options: 'i' };
+  if (q) {
+    const escaped = String(q).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.title = { $regex: escaped, $options: 'i' };
+  }
 
   if (branch || semester) {
     const subjectFilter = {};
@@ -116,7 +119,7 @@ export const createResource = asyncHandler(async (req, res) => {
     });
     await User.findByIdAndUpdate(req.user._id, { $inc: { uploadsCount: 1 } });
   } catch (err) {
-    await destroyAsset(uploaded.public_id);
+    await destroyAsset(uploaded.public_id, uploaded.resource_type);
     throw err;
   }
 
@@ -155,5 +158,48 @@ export const toggleUpvote = asyncHandler(async (req, res) => {
     upvoted,
     upvoteCount: resource.upvotes.length,
     resourceId: resource._id,
+  });
+});
+
+// DELETE /api/resources/:id
+export const deleteResource = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) throw ApiError.badRequest('Invalid resource id');
+
+  const resource = await Resource.findById(id).select('+filePublicId');
+  if (!resource) throw ApiError.notFound('Resource not found');
+
+  // Authorization: Only the original uploader can delete
+  if (String(resource.uploadedBy) !== String(req.user._id)) {
+    throw ApiError.forbidden('You are not authorized to delete this resource');
+  }
+
+  // Delete file from Cloudinary if publicId exists
+  if (resource.filePublicId) {
+    const resourceType = resource.fileFormat === 'pdf' ? 'image' : 'raw';
+    await destroyAsset(resource.filePublicId, resourceType);
+  }
+
+  // Decrement user upload count safely
+  await User.updateOne(
+    { _id: resource.uploadedBy, uploadsCount: { $gt: 0 } },
+    { $inc: { uploadsCount: -1 } }
+  );
+
+  // If this resource had upvotes, subtract them from author's upvotesReceived
+  const upvoteCount = resource.upvotes?.length ?? 0;
+  if (upvoteCount > 0) {
+    await User.updateOne(
+      { _id: resource.uploadedBy, upvotesReceived: { $gte: upvoteCount } },
+      { $inc: { upvotesReceived: -upvoteCount } }
+    );
+  }
+
+  await Resource.findByIdAndDelete(id);
+
+  res.json({
+    success: true,
+    message: 'Resource deleted successfully',
+    resourceId: id,
   });
 });

@@ -11,7 +11,7 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 const UserProfile = () => {
   const { userId } = useParams();
   const { user: me } = useAuth();
-  const { data, loading, error } = useApi(() => fetchUserProfile(userId), [userId]);
+  const { data, loading, error, setData } = useApi(() => fetchUserProfile(userId), [userId]);
 
   if (loading) return <FullPageLoader label="Loading profile…" />;
 
@@ -19,10 +19,25 @@ const UserProfile = () => {
     return <EmptyState icon="🔍" title="Profile unavailable" description={error} />;
   }
 
+  const handleUpvoted = (id, res) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            uploads: (prev.uploads ?? []).map((r) =>
+              r._id === id
+                ? { ...r, upvoteCount: res.upvoteCount, hasUpvoted: res.upvoted }
+                : r
+            ),
+          }
+        : prev
+    );
+  };
+
   return (
     <div className="space-y-5">
-      <ProfileHeader user={data.user} isSelf={data.user._id === me._id} />
-      <UploadHistory uploads={data.uploads} />
+      <ProfileHeader user={data.user} isSelf={Boolean(me?._id && data.user._id === me._id)} />
+      <UploadHistory uploads={data.uploads} onUpvoted={handleUpvoted} />
     </div>
   );
 };

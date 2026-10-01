@@ -24,10 +24,11 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(safeGetToken);
   const [loading, setLoading] = useState(Boolean(safeGetToken()));
 
-  // Ye flag ensure karega ki restore effect login ke baad user ko overwrite na kare
-  const hasHydrated = useRef(false);
+  // Session version tracks in-flight restore calls vs fresh logins
+  const sessionVersion = useRef(0);
 
   const logout = useCallback(() => {
+    sessionVersion.current += 1;
     try {
       localStorage.removeItem(TOKEN_KEY);
     } catch {
@@ -49,31 +50,33 @@ export const AuthProvider = ({ children }) => {
     setUser(u ?? null);
   }, []);
 
-  // Page load pe session restore karo (sirf ek baar)
+  // Page load pe session restore karo
   useEffect(() => {
     let cancelled = false;
+    const version = sessionVersion.current;
 
     const restore = async () => {
       const stored = safeGetToken();
 
       if (!stored) {
-        if (!cancelled) setLoading(false);
-        hasHydrated.current = true;
+        if (!cancelled && sessionVersion.current === version) {
+          setLoading(false);
+        }
         return;
       }
 
       try {
         const { user: me } = await meRequest();
-        // Agar is beech login/signup ho gaya ho, toh purana user mat set karo
-        if (!cancelled && !hasHydrated.current) {
+        if (!cancelled && sessionVersion.current === version) {
           setUser(me);
         }
       } catch {
-        if (!cancelled) logout();
+        if (!cancelled && sessionVersion.current === version) {
+          logout();
+        }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && sessionVersion.current === version) {
           setLoading(false);
-          hasHydrated.current = true;
         }
       }
     };
@@ -93,8 +96,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(
     async (credentials) => {
+      sessionVersion.current += 1;
       const data = await loginRequest(credentials);
-      hasHydrated.current = true;
       applySession(data);
       return data.user;
     },
@@ -103,8 +106,8 @@ export const AuthProvider = ({ children }) => {
 
   const signup = useCallback(
     async (payload) => {
+      sessionVersion.current += 1;
       const data = await signupRequest(payload);
-      hasHydrated.current = true;
       applySession(data);
       return data.user;
     },

@@ -9,6 +9,7 @@ const ResourceList = ({
   showSubject = false,
   emptyAction,
   onUpvoted,
+  onDeleted,
 }) => {
   if (loading) return <SkeletonList count={4} />;
 
@@ -31,6 +32,7 @@ const ResourceList = ({
           resource={r}
           showSubject={showSubject}
           onUpvoted={onUpvoted}
+          onDeleted={onDeleted}
         />
       ))}
     </div>

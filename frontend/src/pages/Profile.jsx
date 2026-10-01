@@ -10,11 +10,30 @@ import { FullPageLoader } from '../components/ui/Loader.jsx';
 
 const Profile = () => {
   const { user } = useAuth();
-  const { data, loading } = useApi(() => fetchUserProfile(user._id), [user._id]);
+  const { data, loading, setData } = useApi(
+    () => (user?._id ? fetchUserProfile(user._id) : Promise.resolve(null)),
+    [user?._id],
+    { skip: !user?._id }
+  );
 
   if (loading) return <FullPageLoader label="Loading your profile…" />;
 
   const profile = data?.user ?? user;
+
+  const handleUpvoted = (id, res) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            uploads: (prev.uploads ?? []).map((r) =>
+              r._id === id
+                ? { ...r, upvoteCount: res.upvoteCount, hasUpvoted: res.upvoted }
+                : r
+            ),
+          }
+        : prev
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -30,6 +49,7 @@ const Profile = () => {
 
       <UploadHistory
         uploads={data?.uploads ?? []}
+        onUpvoted={handleUpvoted}
         emptyAction={
           <Link to={`/semester/${profile.branch}/${profile.semester}`}>
             <Button>Upload your first resource</Button>

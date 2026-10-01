@@ -20,22 +20,17 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-          <Route
-            path="/semester/:branch/:semester"
-            element={<ProtectedRoute><SemesterPage /></ProtectedRoute>}
-          />
-          <Route
-            path="/subject/:subjectId"
-            element={<ProtectedRoute><SubjectPage /></ProtectedRoute>}
-          />
+          <Route path="/" element={<Home />} />
+          <Route path="/semester/:branch/:semester" element={<SemesterPage />} />
+          <Route path="/subject/:subjectId" element={<SubjectPage />} />
+          <Route path="/u/:userId" element={<UserProfile />} />
           <Route
             path="/profile"
-            element={<ProtectedRoute><Profile /></ProtectedRoute>}
-          />
-          <Route
-            path="/u/:userId"
-            element={<ProtectedRoute><UserProfile /></ProtectedRoute>}
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
           />
 
           <Route path="/404" element={<NotFound />} />

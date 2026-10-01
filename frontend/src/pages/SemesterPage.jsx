@@ -2,7 +2,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { fetchSubjects } from '../api/subjects.js';
-import { fetchResources } from '../api/resources.js';
 import { useApi } from '../hooks/useApi.js';
 import SubjectGrid from '../components/SubjectGrid.jsx';
 
@@ -15,18 +14,6 @@ const SemesterPage = () => {
     () => fetchSubjects(branch, sem),
     [branch, sem]
   );
-
-  const { data: resourceData, loading: resourcesLoading } = useApi(
-    () => fetchResources({ branch, semester: sem, limit: 50 }),
-    [branch, sem]
-  );
-
-  // Har subject ke resources count karo
-  const counts = (resourceData?.resources ?? []).reduce((acc, r) => {
-    const id = r.subject?._id;
-    if (id) acc[id] = (acc[id] ?? 0) + 1;
-    return acc;
-  }, {});
 
   return (
     <div className="space-y-5">
@@ -71,10 +58,7 @@ const SemesterPage = () => {
           ))}
         </div>
       ) : (
-        <SubjectGrid
-          subjects={subjectData?.subjects ?? []}
-          counts={resourcesLoading ? {} : counts}
-        />
+        <SubjectGrid subjects={subjectData?.subjects ?? []} />
       )}
     </div>
   );

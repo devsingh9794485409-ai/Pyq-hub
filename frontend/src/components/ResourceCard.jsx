@@ -1,18 +1,37 @@
-// src/components/ResourceCard.jsx
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { toggleUpvote } from '../api/resources.js';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { deleteResource, toggleUpvote } from '../api/resources.js';
+import { getErrorMessage } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { timeAgo, TYPE_STYLES } from '../utils/format.js';
 
-const ResourceCard = ({ resource, onUpvoted, showSubject = false }) => {
+const ResourceCard = ({ resource, onUpvoted, onDeleted, showSubject = false }) => {
   const { user } = useAuth();
-  const [upvoted, setUpvoted] = useState(resource.hasUpvoted);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [upvoted, setUpvoted] = useState(Boolean(resource.hasUpvoted));
   const [count, setCount] = useState(resource.upvoteCount ?? 0);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setUpvoted(Boolean(resource.hasUpvoted));
+    setCount(resource.upvoteCount ?? 0);
+  }, [resource.hasUpvoted, resource.upvoteCount]);
+
+  const isOwner = Boolean(
+    user?._id &&
+    resource.uploadedBy?._id &&
+    String(user._id) === String(resource.uploadedBy._id)
+  );
 
   const handleUpvote = async () => {
-    if (!user || busy) return;
+    if (!user) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    if (busy || deleting) return;
     setBusy(true);
 
     // Optimistic update
@@ -31,6 +50,21 @@ const ResourceCard = ({ resource, onUpvoted, showSubject = false }) => {
       setCount((c) => c + (nextUpvoted ? -1 : 1));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isOwner || busy || deleting) return;
+    const ok = window.confirm(`Are you sure you want to delete "${resource.title}"?`);
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      await deleteResource(resource._id);
+      onDeleted?.(resource._id);
+    } catch (err) {
+      alert(getErrorMessage(err));
+      setDeleting(false);
     }
   };
 
@@ -80,7 +114,7 @@ const ResourceCard = ({ resource, onUpvoted, showSubject = false }) => {
         <button
           type="button"
           onClick={handleUpvote}
-          disabled={!user || busy}
+          disabled={busy || deleting}
           aria-pressed={upvoted}
           aria-label={upvoted ? 'Remove upvote' : 'Upvote'}
           className={`flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 transition ${
@@ -109,6 +143,29 @@ const ResourceCard = ({ resource, onUpvoted, showSubject = false }) => {
           </svg>
           Open
         </a>
+
+        {isOwner && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting || busy}
+            title="Delete resource"
+            aria-label="Delete resource"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+          >
+            {deleting ? (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+            ) : (
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fillRule="evenodd"
+                  d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 1 .75.748l.25 6.5a.75.75 0 1 1-1.498.058l-.25-6.5a.75.75 0 0 1 .748-.806Zm3.59.748a.75.75 0 0 0-1.498-.058l-.25 6.5a.75.75 0 1 0 1.498.058l.25-6.5Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
     </article>
   );

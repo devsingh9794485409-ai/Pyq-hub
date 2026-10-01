@@ -1,6 +1,5 @@
-// src/pages/SubjectPage.jsx
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchSubject } from '../api/subjects.js';
 import { fetchResources } from '../api/resources.js';
 import FilterBar from '../components/FilterBar.jsx';
@@ -14,7 +13,9 @@ import { useLocalStorage } from '../hooks/useLocalStorage.js';
 
 const SubjectPage = () => {
   const { subjectId } = useParams();
-  const {  refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [type, setType] = useState('');
   // Persist the user's preferred sort order across page navigations.
