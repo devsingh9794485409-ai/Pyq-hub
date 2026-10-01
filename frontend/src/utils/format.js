@@ -30,3 +30,17 @@ export const TYPE_STYLES = {
 };
 
 export const TYPE_LABELS = { PYQ: 'PYQ', Notes: 'Notes', Sessional: 'Sessional' };
+
+/**
+ * Truncates a string to the given max length and appends an ellipsis.
+ * Breaks at the last whitespace within the limit to avoid cutting mid-word.
+ * @param {string} text - The text to truncate.
+ * @param {number} maxLength - Maximum number of characters (default 80).
+ * @returns {string}
+ */
+export const truncateText = (text = '', maxLength = 80) => {
+  if (text.length <= maxLength) return text;
+  const trimmed = text.slice(0, maxLength);
+  const lastSpace = trimmed.lastIndexOf(' ');
+  return (lastSpace > 0 ? trimmed.slice(0, lastSpace) : trimmed) + '…';
+};

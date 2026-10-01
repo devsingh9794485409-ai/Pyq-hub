@@ -10,7 +10,7 @@ export const useApi = (fn, deps = [], { skip = false } = {}) => {
 
   const fnRef = useRef(fn);
 
-  // Ref update render ke baad
+  // Always keep the ref pointing at the latest version of fn.
   useEffect(() => {
     fnRef.current = fn;
   });
@@ -31,7 +31,7 @@ export const useApi = (fn, deps = [], { skip = false } = {}) => {
   }, []);
 
   useEffect(() => {
-    // skip true hai toh kuch mat karo — loading already false hai initial state se
+    // When skip is true, do nothing — loading is already false from initial state.
     if (skip) return;
     run();
     // eslint-disable-next-line react-hooks/exhaustive-deps

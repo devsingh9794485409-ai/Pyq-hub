@@ -19,6 +19,7 @@ const FilterBar = ({ type, onTypeChange, sort, onSortChange, search, onSearchCha
         className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
         viewBox="0 0 20 20"
         fill="currentColor"
+        aria-hidden="true"
       >
         <path
           fillRule="evenodd"
@@ -31,8 +32,21 @@ const FilterBar = ({ type, onTypeChange, sort, onSortChange, search, onSearchCha
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Search by title…"
-        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm placeholder:text-slate-400 focus:border-brand-500"
+        aria-label="Search resources by title"
+        className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
       />
+      {search && (
+        <button
+          type="button"
+          onClick={() => onSearchChange('')}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+          </svg>
+        </button>
+      )}
     </div>
 
     <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -41,6 +55,7 @@ const FilterBar = ({ type, onTypeChange, sort, onSortChange, search, onSearchCha
           key={t.value}
           type="button"
           onClick={() => onTypeChange(t.value)}
+          aria-pressed={type === t.value}
           className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
             type === t.value
               ? 'bg-brand-600 text-white'
