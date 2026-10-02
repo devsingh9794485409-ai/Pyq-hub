@@ -13,17 +13,17 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useLocalStorage } from '../hooks/useLocalStorage.js';
 
 const SubjectPage = () => {
-  const { subjectId } = useParams();
-  const {  refreshUser } = useAuth();
+  const { subjectId }   = useParams();
+  const { user, refreshUser } = useAuth();
 
-  const [type, setType] = useState('');
-  // Persist the user's preferred sort order across page navigations.
-  const [sort, setSort] = useLocalStorage('pyqhub:sort', 'recent');
-  const [search, setSearch] = useState('');
+  const [type,            setType]            = useState('');
+  const [category,        setCategory]        = useState('');
+  const [sort,            setSort]            = useLocalStorage('pyqhub:sort', 'recent');
+  const [search,          setSearch]          = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadOpen,      setUploadOpen]      = useState(false);
 
-  // Search debounce
+  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(t);
@@ -41,50 +41,53 @@ const SubjectPage = () => {
     refetch,
     setData,
   } = useApi(
-    () =>
-      fetchResources({
-        subject: subjectId,
-        ...(type ? { type } : {}),
-        ...(debouncedSearch ? { q: debouncedSearch } : {}),
-        sort,
-        limit: 50,
-      }),
-    [subjectId, type, sort, debouncedSearch]
+    () => fetchResources({
+      subject: subjectId,
+      ...(type     ? { type }     : {}),
+      ...(category ? { category } : {}),
+      ...(debouncedSearch ? { q: debouncedSearch } : {}),
+      sort,
+      limit: 50,
+    }),
+    [subjectId, type, category, sort, debouncedSearch]
   );
 
-  const subject = subjectData?.subject;
+  const subject   = subjectData?.subject;
   const resources = useMemo(() => resourceData?.resources ?? [], [resourceData]);
 
-  const handleUploaded = useCallback(
-    (resource) => {
-      setUploadOpen(false);
-      setData((prev) => ({
-        ...(prev ?? { total: 1 }),
-        total: (prev?.total ?? 0) + 1,
-        resources: [resource, ...(prev?.resources ?? [])],
-      }));
-      refreshUser().catch(() => {});
-    },
-    [setData, refreshUser]
-  );
+  // Optimistic add after upload
+  const handleUploaded = useCallback((resource) => {
+    setUploadOpen(false);
+    setData((prev) => ({
+      ...(prev ?? { total: 1 }),
+      total:     (prev?.total ?? 0) + 1,
+      resources: [resource, ...(prev?.resources ?? [])],
+    }));
+    refreshUser().catch(() => {});
+  }, [setData, refreshUser]);
 
-  const handleUpvoted = useCallback(
-    (id, res) => {
-      setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              resources: prev.resources.map((r) =>
-                r._id === id
-                  ? { ...r, upvoteCount: res.upvoteCount, hasUpvoted: res.upvoted }
-                  : r
-              ),
-            }
-          : prev
-      );
-    },
-    [setData]
-  );
+  // Sync upvote state
+  const handleUpvoted = useCallback((id, res) => {
+    setData((prev) =>
+      prev ? {
+        ...prev,
+        resources: prev.resources.map((r) =>
+          r._id === id ? { ...r, upvoteCount: res.upvoteCount, hasUpvoted: res.upvoted } : r
+        ),
+      } : prev
+    );
+  }, [setData]);
+
+  // Remove deleted resource optimistically
+  const handleDeleted = useCallback((id) => {
+    setData((prev) =>
+      prev ? {
+        ...prev,
+        total:     Math.max(0, (prev.total ?? 1) - 1),
+        resources: prev.resources.filter((r) => r._id !== id),
+      } : prev
+    );
+  }, [setData]);
 
   if (subjectLoading) {
     return (
@@ -111,14 +114,9 @@ const SubjectPage = () => {
     <div className="space-y-5">
       {/* Breadcrumb */}
       <nav className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-        <Link to="/" className="hover:text-brand-600">
-          Home
-        </Link>
+        <Link to="/" className="hover:text-brand-600">Home</Link>
         <span>/</span>
-        <Link
-          to={`/semester/${subject.branch}/${subject.semester}`}
-          className="hover:text-brand-600"
-        >
+        <Link to={`/semester/${subject.branch}/${subject.semester}`} className="hover:text-brand-600">
           {subject.branch} · Sem {subject.semester}
         </Link>
         <span>/</span>
@@ -129,42 +127,38 @@ const SubjectPage = () => {
       <header className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <span className="chip bg-brand-50 text-brand-700 ring-1 ring-brand-200">
-              {subject.code}
-            </span>
-            <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">
-              {subject.name}
-            </h1>
+            <span className="chip bg-brand-50 text-brand-700 ring-1 ring-brand-200">{subject.code}</span>
+            <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">{subject.name}</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {resources.length} {resources.length === 1 ? 'resource' : 'resources'}
-              {type && ` · filtered by ${type}`}
+              {resourceData?.total ?? resources.length} resource{(resourceData?.total ?? resources.length) !== 1 ? 's' : ''}
+              {type     && ` · ${type}`}
+              {category && ` · ${category}`}
             </p>
           </div>
 
-          <Button onClick={() => setUploadOpen(true)} className="shrink-0">
-            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-            </svg>
-            Upload
-          </Button>
+          {user && (
+            <Button onClick={() => setUploadOpen(true)} className="shrink-0">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              Upload
+            </Button>
+          )}
         </div>
       </header>
 
+      {/* Filter bar (Phase 5: category filter) */}
       <FilterBar
-        type={type}
-        onTypeChange={setType}
-        sort={sort}
-        onSortChange={setSort}
-        search={search}
-        onSearchChange={setSearch}
+        type={type}          onTypeChange={setType}
+        category={category}  onCategoryChange={setCategory}
+        sort={sort}          onSortChange={setSort}
+        search={search}      onSearchChange={setSearch}
       />
 
       {resourcesError && (
         <div className="card flex items-center justify-between gap-3 p-4">
           <p className="text-sm text-red-700">{resourcesError}</p>
-          <Button size="sm" variant="secondary" onClick={refetch}>
-            Retry
-          </Button>
+          <Button size="sm" variant="secondary" onClick={refetch}>Retry</Button>
         </div>
       )}
 
@@ -172,20 +166,29 @@ const SubjectPage = () => {
         resources={resources}
         loading={resourcesLoading}
         onUpvoted={handleUpvoted}
+        onDeleted={handleDeleted}
         emptyAction={
-          <Button onClick={() => setUploadOpen(true)}>
-            {debouncedSearch || type ? 'Upload something' : 'Upload the first one'}
-          </Button>
+          user ? (
+            <Button onClick={() => setUploadOpen(true)}>
+              {debouncedSearch || type || category ? 'Upload something' : 'Upload the first one'}
+            </Button>
+          ) : (
+            <Link to="/login">
+              <Button>Log in to upload</Button>
+            </Link>
+          )
         }
       />
 
-      <Modal open={uploadOpen} onClose={() => setUploadOpen(false)} title="Upload a resource">
-        <UploadForm
-          subject={subject}
-          onUploaded={handleUploaded}
-          onCancel={() => setUploadOpen(false)}
-        />
-      </Modal>
+      {user && (
+        <Modal open={uploadOpen} onClose={() => setUploadOpen(false)} title="Upload a resource">
+          <UploadForm
+            subject={subject}
+            onUploaded={handleUploaded}
+            onCancel={() => setUploadOpen(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

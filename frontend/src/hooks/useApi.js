@@ -1,14 +1,19 @@
 // src/hooks/useApi.js
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getErrorMessage } from '../api/client.js';
 
+/**
+ * Generic data-fetching hook.
+ * - Automatically aborts in-flight requests on re-render / unmount (Phase 2)
+ * - skip=true means "don't auto-fetch on mount; call refetch() manually"
+ */
 export const useApi = (fn, deps = [], { skip = false } = {}) => {
-  const [data, setData] = useState(null);
+  const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(!skip);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
 
-  const fnRef = useRef(fn);
+  const fnRef       = useRef(fn);
+  const abortRef    = useRef(null);
 
   // Always keep the ref pointing at the latest version of fn.
   useEffect(() => {
@@ -16,24 +21,40 @@ export const useApi = (fn, deps = [], { skip = false } = {}) => {
   });
 
   const run = useCallback(async () => {
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller  = new AbortController();
+    abortRef.current  = controller;
+
     setLoading(true);
     setError(null);
     try {
-      const result = await fnRef.current();
-      setData(result);
+      const result = await fnRef.current(controller.signal);
+      if (!controller.signal.aborted) {
+        setData(result);
+      }
       return result;
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (!controller.signal.aborted) {
+        setError(getErrorMessage(err));
+      }
       return null;
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    // When skip is true, do nothing — loading is already false from initial state.
-    if (skip) return;
+    if (skip) {
+      setLoading(false);
+      return;
+    }
     run();
+    return () => {
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
