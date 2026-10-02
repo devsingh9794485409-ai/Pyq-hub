@@ -14,8 +14,14 @@ export const uploadResource = (formData, onProgress) =>
     })
     .then((r) => r.data);
 
+export const deleteResource = (id) =>
+  client.delete(`/resources/${id}`).then((r) => r.data);
+
 export const toggleUpvote = (id) =>
   client.post(`/resources/${id}/upvote`).then((r) => r.data);
 
-export const deleteResource = (id) =>
-  client.delete(`/resources/${id}`).then((r) => r.data);
+export const toggleBookmark = (id) =>
+  client.post(`/resources/${id}/bookmark`).then((r) => r.data);
+
+export const incrementDownload = (id) =>
+  client.post(`/resources/${id}/download`).then((r) => r.data);
