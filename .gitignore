@@ -54,3 +54,7 @@ Thumbs.db
 backend.zip
 *.zip
 *.tar.gz
+# Firebase Credentials
+*firebase*adminsdk*.json
+serviceAccount*.json
+service-account*.json

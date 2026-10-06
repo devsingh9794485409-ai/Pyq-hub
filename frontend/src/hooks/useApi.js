@@ -1,68 +1,64 @@
 // src/hooks/useApi.js
 import { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
 import { getErrorMessage } from '../api/client.js';
 
+/**
+ * Generic data-fetching hook.
+ * - Automatically aborts in-flight requests on re-render / unmount (Phase 2)
+ * - skip=true means "don't auto-fetch on mount; call refetch() manually"
+ */
 export const useApi = (fn, deps = [], { skip = false } = {}) => {
-  const [data, setData] = useState(null);
+  const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(!skip);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
 
-  const fnRef = useRef(fn);
+  const fnRef       = useRef(fn);
+  const abortRef    = useRef(null);
 
-  // Ref update render ke baad
+  // Always keep the ref pointing at the latest version of fn.
   useEffect(() => {
     fnRef.current = fn;
   });
 
-  const execute = useCallback(async () => {
-    // Abort previous in-flight request
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-    }
-    const controller = new AbortController();
-    controllerRef.current = controller;
-    const currentReqId = ++reqIdRef.current;
+  const run = useCallback(async () => {
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller  = new AbortController();
+    abortRef.current  = controller;
 
     setLoading(true);
     setError(null);
-
     try {
       const result = await fnRef.current(controller.signal);
-      // Only commit if this was the latest initiated request
-      if (currentReqId === reqIdRef.current) {
+      if (!controller.signal.aborted) {
         setData(result);
-        setLoading(false);
       }
       return result;
     } catch (err) {
-      const isCancelled =
-        axios.isCancel?.(err) ||
-        err?.name === 'CanceledError' ||
-        err?.name === 'AbortError' ||
-        err?.code === 'ERR_CANCELED';
-
-      if (isCancelled) {
-        // Suppress errors from deliberately aborted requests
-        return null;
-      }
-
-      if (currentReqId === reqIdRef.current) {
+      if (!controller.signal.aborted) {
         setError(getErrorMessage(err));
-        setLoading(false);
       }
       return null;
+    } finally {
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    // skip true hai toh kuch mat karo — loading already false hai initial state se
-    if (skip) return;
+    if (skip) {
+      setLoading(false);
+      return;
+    }
     run();
+    return () => {
+      abortRef.current?.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { data, loading, error, refetch: execute, setData };
+  return { data, loading, error, refetch: run, setData };
 };
 
 export default useApi;

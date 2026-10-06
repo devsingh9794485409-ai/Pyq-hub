@@ -22,10 +22,28 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      // Optional for Google/OAuth users who never set a password
       minlength: 6,
-      select: false, // By default queries me nahi aayega
+      select: false,
     },
+
+    // ── OAuth fields ──────────────────────────────────────────
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
+    },
+    googleId: {
+      type: String,
+      sparse: true, // allows multiple nulls in the unique index
+      unique: true,
+    },
+    avatarUrl: {
+      type: String,
+      default: '',
+    },
+
+    // ── Academic info ─────────────────────────────────────────
     branch: {
       type: String,
       required: true,
@@ -38,35 +56,52 @@ const userSchema = new mongoose.Schema(
       min: 1,
       max: 8,
     },
-    uploadsCount: { type: Number, default: 0, min: 0 },
+
+    // ── Stats ─────────────────────────────────────────────────
+    uploadsCount:    { type: Number, default: 0, min: 0 },
     upvotesReceived: { type: Number, default: 0, min: 0 },
+    downloadsReceived: { type: Number, default: 0, min: 0 },
+
+    // ── Role ──────────────────────────────────────────────────
+    isAdmin: { type: Boolean, default: false },
+
+    // ── Bookmarks (Phase 7) ───────────────────────────────────
+    bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Resource' }],
+
+    // ── Password reset (Phase 3) ──────────────────────────────
+    passwordResetToken:  { type: String, select: false },
+    passwordResetExpiry: { type: Date, select: false },
   },
   { timestamps: true }
 );
 
-// Password hash karo save karne se pehle
+// Hash password before save (only when it is set and has changed)
 userSchema.pre('save', async function hashPassword(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Password compare karne ka method
 userSchema.methods.comparePassword = function (candidate) {
+  if (!this.password) return Promise.resolve(false);
   return bcrypt.compare(candidate, this.password);
 };
 
-// Public JSON — password hata ke
 userSchema.methods.toPublicJSON = function () {
   return {
-    _id: this._id,
-    name: this.name,
-    email: this.email,
-    branch: this.branch,
-    semester: this.semester,
-    uploadsCount: this.uploadsCount,
-    upvotesReceived: this.upvotesReceived,
-    createdAt: this.createdAt,
+    _id:              this._id,
+    name:             this.name,
+    email:            this.email,
+    avatarUrl:        this.avatarUrl,
+    branch:           this.branch,
+    semester:         this.semester,
+    authProvider:     this.authProvider,
+    uploadsCount:     this.uploadsCount,
+    upvotesReceived:  this.upvotesReceived,
+    downloadsReceived:this.downloadsReceived,
+    isAdmin:          this.isAdmin,
+    bookmarks:        this.bookmarks,
+    createdAt:        this.createdAt,
   };
 };
 

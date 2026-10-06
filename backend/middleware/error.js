@@ -15,7 +15,7 @@ export const errorHandler = (err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
     status = 400;
     message =
-      err.code === 'LIMIT_FILE_SIZE' ? 'File too large (max 15 MB)' : `Upload error: ${err.code}`;
+      err.code === 'LIMIT_FILE_SIZE' ? 'File too large (max 20 MB)' : `Upload error: ${err.code}`;
   }
 
   if (err.name === 'ValidationError') {
