@@ -12,12 +12,22 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Only initialize Firebase if a valid API key is provided
+const isFirebaseConfigured = Boolean(firebaseConfig.apiKey);
 
-export const auth           = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+let app = null;
+let auth = null;
+let googleProvider = null;
 
-// Always prompt account picker so users can switch Google accounts
-googleProvider.setCustomParameters({ prompt: 'select_account' });
+if (isFirebaseConfigured) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
+  // Always prompt account picker so users can switch Google accounts
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
+} else {
+  console.warn('Firebase is not configured. Google sign-in will be unavailable. Set VITE_FIREBASE_* env variables to enable it.');
+}
 
+export { auth, googleProvider, isFirebaseConfigured };
 export default app;

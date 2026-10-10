@@ -1,3 +1,5 @@
  node_modules/
 .env
 backend.zip
+# Firebase service account credentials
+backend/config/pyq-hub-b30be-firebase-adminsdk-*.json

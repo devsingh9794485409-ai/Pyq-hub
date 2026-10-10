@@ -5,6 +5,49 @@ import Resource from '../models/Resource.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
+// GET /api/users/me/bookmarks — Authenticated user's saved resources
+export const getMyBookmarks = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('bookmarks').lean();
+  if (!user) throw ApiError.notFound('User not found');
+
+  const bookmarkIds = user.bookmarks ?? [];
+  if (!bookmarkIds.length) {
+    return res.json({ success: true, resources: [], total: 0 });
+  }
+
+  const resources = await Resource.find({ _id: { $in: bookmarkIds } })
+    .sort({ createdAt: -1 })
+    .populate('subject',    'name code branch semester')
+    .populate('uploadedBy', 'name branch semester avatarUrl')
+    .lean();
+
+  const bookmarkSet = new Set(bookmarkIds.map(String));
+  const userId = String(req.user._id);
+
+  const shaped = resources.map((d) => ({
+    _id:           d._id,
+    title:         d.title,
+    description:   d.description,
+    type:          d.type,
+    year:          d.year,
+    academicYear:  d.academicYear,
+    category:      d.category,
+    tags:          d.tags ?? [],
+    fileUrl:       d.fileUrl,
+    fileFormat:    d.fileFormat,
+    fileSize:      d.fileSize,
+    createdAt:     d.createdAt,
+    subject:       d.subject,
+    uploadedBy:    d.uploadedBy,
+    upvoteCount:   d.upvotes?.length ?? 0,
+    downloadCount: d.downloadCount ?? 0,
+    hasUpvoted:    (d.upvotes ?? []).some((id) => String(id) === userId),
+    isBookmarked:  bookmarkSet.has(String(d._id)),
+  }));
+
+  res.json({ success: true, resources: shaped, total: shaped.length });
+});
+
 // GET /api/users/:id  — Public profile + uploads
 export const getUserProfile = asyncHandler(async (req, res) => {
   const { id } = req.params;

@@ -11,7 +11,15 @@ export const meRequest = () =>
   client.get('/auth/me').then((r) => r.data);
 
 export const firebaseAuthRequest = (data) =>
-  client.post('/auth/firebase', data).then((r) => r.data);
+  client
+    .post('/auth/firebase', data)
+    .then((r) => r.data)
+    .catch((error) => {
+      if (error.response?.status === 422 && error.response?.data?.code === 'PROFILE_INCOMPLETE') {
+        return error.response.data;
+      }
+      return Promise.reject(error);
+    });
 
 export const forgotPasswordRequest = (email) =>
   client.post('/auth/forgot-password', { email }).then((r) => r.data);

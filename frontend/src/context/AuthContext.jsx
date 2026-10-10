@@ -109,8 +109,17 @@ export const AuthProvider = ({ children }) => {
    * to know if branch/semester are still needed.
    */
   const googleLogin = useCallback(async (idToken, extra = {}) => {
-    const data = await firebaseAuthRequest({ idToken, ...extra });
-    if (data.success) {
+    let data;
+    try {
+      data = await firebaseAuthRequest({ idToken, ...extra });
+    } catch (err) {
+      if (err.response?.status === 422 && err.response?.data?.code === 'PROFILE_INCOMPLETE') {
+        data = err.response.data;
+      } else {
+        throw err;
+      }
+    }
+    if (data?.success) {
       hasHydrated.current = true;
       applySession(data);
     }

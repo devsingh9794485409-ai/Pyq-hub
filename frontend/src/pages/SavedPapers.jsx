@@ -1,36 +1,44 @@
 // src/pages/SavedPapers.jsx
-import { useMemo } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
-import { fetchResources } from '../api/resources.js';
+import { useCallback } from 'react';
+import { fetchMyBookmarks } from '../api/users.js';
 import { useApi } from '../hooks/useApi.js';
 import ResourceCard from '../components/ResourceCard.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import { FullPageLoader } from '../components/ui/Loader.jsx';
 
 const SavedPapers = () => {
-  const { user } = useAuth();
+  const { data, loading, error, refetch, setData } = useApi(fetchMyBookmarks, []);
 
-  // Fetch all bookmarked resources by their IDs
-  const bookmarkIds = useMemo(() => user?.bookmarks ?? [], [user?.bookmarks]);
+  // Optimistic bookmark removal when user un-bookmarks from this page
+  const handleBookmarkToggled = useCallback((id, isBookmarked) => {
+    if (!isBookmarked) {
+      // Resource was un-bookmarked — remove it from the list
+      setData((prev) =>
+        prev
+          ? { ...prev, resources: prev.resources.filter((r) => String(r._id) !== String(id)) }
+          : prev
+      );
+    }
+  }, [setData]);
 
-  const { data, loading, error, refetch } = useApi(
-    () => {
-      if (!bookmarkIds.length) return Promise.resolve({ resources: [], total: 0 });
-      // Fetch resources that are bookmarked (we use the full list and filter client-side
-      // since the backend /resources endpoint doesn't support bookmark filter yet)
-      return fetchResources({ limit: 100 });
-    },
-    [bookmarkIds.length],
-    { skip: false }
-  );
-
-  const savedResources = useMemo(() => {
-    if (!data?.resources) return [];
-    const ids = new Set(bookmarkIds.map(String));
-    return data.resources.filter((r) => ids.has(String(r._id)));
-  }, [data?.resources, bookmarkIds]);
+  const handleUpvoted = useCallback((id, res) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            resources: prev.resources.map((r) =>
+              String(r._id) === String(id)
+                ? { ...r, upvoteCount: res.upvoteCount, hasUpvoted: res.upvoted }
+                : r
+            ),
+          }
+        : prev
+    );
+  }, [setData]);
 
   if (loading) return <FullPageLoader label="Loading saved papers…" />;
+
+  const savedResources = data?.resources ?? [];
 
   return (
     <div className="space-y-5">
@@ -58,8 +66,9 @@ const SavedPapers = () => {
               key={r._id}
               resource={r}
               showSubject
-              onUpvoted={refetch}
-              onBookmarkToggled={refetch}
+              onUpvoted={handleUpvoted}
+              onBookmarkToggled={handleBookmarkToggled}
+              onDeleted={() => refetch()}
             />
           ))}
         </div>

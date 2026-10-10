@@ -1,6 +1,7 @@
 // backend/routes/userRoutes.js
 import { Router } from 'express';
 import {
+  getMyBookmarks,
   getUserProfile,
   listUsers,
   updateUser,
@@ -10,6 +11,9 @@ import { protect } from '../middleware/auth.js';
 import { adminOnly } from '../middleware/adminOnly.js';
 
 const router = Router();
+
+// Authenticated: get own bookmarked resources (must come before /:id)
+router.get('/me/bookmarks', protect, getMyBookmarks);
 
 // Public: view any user's profile + uploads
 router.get('/:id', getUserProfile);

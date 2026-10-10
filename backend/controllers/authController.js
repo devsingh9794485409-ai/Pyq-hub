@@ -64,6 +64,10 @@ export const me = asyncHandler(async (req, res) => {
 // POST /api/auth/firebase
 // Body: { idToken: string, branch?: string, semester?: number }
 export const firebaseAuth = asyncHandler(async (req, res) => {
+  if (!adminAuth) {
+    throw new ApiError(503, 'Google authentication is currently unavailable');
+  }
+
   const { idToken, branch, semester } = req.body ?? {};
 
   if (!idToken || typeof idToken !== 'string') {

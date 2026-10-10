@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { getErrorMessage } from '../api/client.js';
 import Button from '../components/ui/Button.jsx';
 import Input from '../components/ui/Input.jsx';
+import GoogleProfileStep from '../components/GoogleProfileStep.jsx';
 
 const Login = () => {
   const { login, googlePopup, googleLogin, user, loading: bootstrapping } = useAuth();
@@ -16,6 +17,7 @@ const Login = () => {
   const [error, setError]         = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [pendingGoogle, setPendingGoogle] = useState(null); // { idToken, googleUser }
 
   if (!bootstrapping && user) return <Navigate to={from} replace />;
 
@@ -39,9 +41,14 @@ const Login = () => {
     setError('');
     setGoogleBusy(true);
     try {
-      const { idToken } = await googlePopup();
-      await googleLogin(idToken);
-      navigate(from, { replace: true });
+      const { idToken, googleUser } = await googlePopup();
+      const data = await googleLogin(idToken);
+      if (data?.code === 'PROFILE_INCOMPLETE') {
+        // New Google user — need branch & semester
+        setPendingGoogle({ idToken, googleUser });
+      } else if (data?.success) {
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       // user closed the popup → ignore; real errors → show message
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
@@ -52,8 +59,26 @@ const Login = () => {
     }
   };
 
+  // ── Google login step 2: profile complete ────────────────────
+  const handleGoogleProfileComplete = async ({ branch, semester }) => {
+    const data = await googleLogin(pendingGoogle.idToken, { branch, semester });
+    if (data?.success) {
+      navigate(from, { replace: true });
+    } else {
+      throw new Error(data?.message || 'Failed to complete profile');
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-sm pt-8">
+    <>
+      {pendingGoogle && (
+        <GoogleProfileStep
+          googleUser={pendingGoogle.googleUser}
+          onComplete={handleGoogleProfileComplete}
+          onCancel={() => setPendingGoogle(null)}
+        />
+      )}
+      <div className="mx-auto max-w-sm pt-8">
       <div className="mb-6 text-center">
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-brand-600 text-lg font-bold text-white">
           P
@@ -141,6 +166,7 @@ const Login = () => {
         </Link>
       </p>
     </div>
+    </>
   );
 };
 

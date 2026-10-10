@@ -6,3 +6,6 @@ export const fetchUserProfile = (id) =>
 
 export const updateUserProfile = (id, data) =>
   client.patch(`/users/${id}`, data).then((r) => r.data);
+
+export const fetchMyBookmarks = () =>
+  client.get('/users/me/bookmarks').then((r) => r.data);
