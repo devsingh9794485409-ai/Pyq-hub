@@ -9,16 +9,19 @@ import asyncHandler from '../utils/asyncHandler.js';
 // Phase 2: Include resource count aggregation
 export const getSubjects = asyncHandler(async (req, res) => {
   const { branch, semester } = req.query;
-  if (!branch || !semester) throw ApiError.badRequest('branch and semester are required');
+  const filter = {};
 
-  const sem = Number(semester);
-  if (!Number.isInteger(sem) || sem < 1 || sem > 8) throw ApiError.badRequest('Invalid semester');
+  if (branch) {
+    filter.branch = branch.toUpperCase();
+  }
+  if (semester !== undefined && semester !== '') {
+    const sem = Number(semester);
+    if (!Number.isInteger(sem) || sem < 1 || sem > 8) throw ApiError.badRequest('Invalid semester');
+    filter.semester = sem;
+  }
 
-  const subjects = await Subject.find({
-    branch: branch.toUpperCase(),
-    semester: sem,
-  })
-    .sort({ code: 1 })
+  const subjects = await Subject.find(filter)
+    .sort({ branch: 1, semester: 1, code: 1 })
     .lean();
 
   // Aggregate resource counts per subject in a single query (Phase 2 / Phase 10)

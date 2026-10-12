@@ -15,7 +15,7 @@ const TYPES = [
 
 const CATEGORIES = ['', 'Mid-Sem', 'End-Sem', 'Class Test', 'Practical', 'Other'];
 
-const MAX_MB = 20;
+const MAX_MB = 50;
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp',
   'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 

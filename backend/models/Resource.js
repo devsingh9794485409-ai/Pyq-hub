@@ -48,10 +48,11 @@ const resourceSchema = new mongoose.Schema(
       maxlength: 500,
       default: '',
     },
-    fileUrl:      { type: String, required: true },
-    filePublicId: { type: String, select: false },
-    fileSize:     { type: Number },
-    fileFormat:   { type: String },
+    fileUrl:          { type: String, required: true },
+    filePublicId:     { type: String, select: false },
+    fileSize:         { type: Number },
+    fileFormat:       { type: String },
+    fileResourceType: { type: String, default: 'image' },
 
     // ── Academic metadata ────────────────────────────────────
     year:         { type: Number, min: 1990, max: 2100 },

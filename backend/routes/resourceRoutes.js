@@ -7,6 +7,7 @@ import {
   toggleUpvote,
   toggleBookmark,
   incrementDownload,
+  getResourceFile,
 } from '../controllers/resourceController.js';
 import { protect, optionalAuth } from '../middleware/auth.js';
 import { singleFile } from '../middleware/upload.js';
@@ -14,6 +15,7 @@ import { singleFile } from '../middleware/upload.js';
 const router = Router();
 
 router.get('/',                  optionalAuth, getResources);
+router.get('/:id/file',          optionalAuth, getResourceFile);
 router.post('/',                 protect, singleFile, createResource);
 router.delete('/:id',            protect, deleteResource);
 router.post('/:id/upvote',       protect, toggleUpvote);

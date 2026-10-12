@@ -14,6 +14,7 @@ import { useApi } from '../hooks/useApi.js';
 import { useToast } from '../context/ToastContext.jsx';
 import Button from '../components/ui/Button.jsx';
 import { FullPageLoader } from '../components/ui/Loader.jsx';
+import AdminUploadModal from '../components/AdminUploadModal.jsx';
 
 const StatCard = ({ label, value, emoji }) => (
   <div className="card p-5">
@@ -33,14 +34,24 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const toast    = useToast();
   const [tab, setTab] = useState(0);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [resourceVersion, setResourceVersion] = useState(0);
 
   if (!user?.isAdmin) return <Navigate to="/" replace />;
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Admin Panel</h1>
-        <p className="text-sm text-slate-500">Manage PYQHub platform</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Admin Panel</h1>
+          <p className="text-sm text-slate-500">Manage PYQHub platform & curriculum</p>
+        </div>
+        <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+          </svg>
+          Upload Material
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -58,9 +69,17 @@ const AdminPanel = () => {
         ))}
       </div>
 
-      {tab === 0 && <DashboardTab />}
+      {tab === 0 && <DashboardTab key={resourceVersion} />}
       {tab === 1 && <UsersTab toast={toast} />}
-      {tab === 2 && <ResourcesTab toast={toast} />}
+      {tab === 2 && <ResourcesTab key={resourceVersion} toast={toast} onOpenUpload={() => setUploadOpen(true)} />}
+
+      <AdminUploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onUploaded={() => {
+          setResourceVersion((v) => v + 1);
+        }}
+      />
     </div>
   );
 };
@@ -210,7 +229,7 @@ const UsersTab = ({ toast }) => {
   );
 };
 
-const ResourcesTab = ({ toast }) => {
+const ResourcesTab = ({ toast, onOpenUpload }) => {
   const [q, setQ] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const { data, loading, refetch } = useApi(
@@ -231,18 +250,29 @@ const ResourcesTab = ({ toast }) => {
 
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={(e) => { e.preventDefault(); setSearchQ(q); }}
-        className="flex gap-2"
-      >
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by title…"
-          className="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-        <Button type="submit" size="sm">Search</Button>
-      </form>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <form
+          onSubmit={(e) => { e.preventDefault(); setSearchQ(q); }}
+          className="flex flex-1 gap-2 min-w-[240px]"
+        >
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by title…"
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <Button type="submit" size="sm">Search</Button>
+        </form>
+
+        {onOpenUpload && (
+          <Button size="sm" onClick={onOpenUpload} className="gap-1.5 shrink-0">
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+            </svg>
+            Upload Study Material
+          </Button>
+        )}
+      </div>
 
       {loading && <FullPageLoader label="Loading resources…" />}
 

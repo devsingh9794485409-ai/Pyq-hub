@@ -4,6 +4,7 @@ import Resource from '../models/Resource.js';
 import Subject from '../models/Subject.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { destroyAsset } from '../config/cloudinary.js';
+import { extractPublicId } from './resourceController.js';
 import ApiError from '../utils/ApiError.js';
 import mongoose from 'mongoose';
 
@@ -136,7 +137,10 @@ export const deleteResource = asyncHandler(async (req, res) => {
   const resource = await Resource.findById(id).select('+filePublicId');
   if (!resource) throw ApiError.notFound('Resource not found');
 
-  await destroyAsset(resource.filePublicId);
+  const publicId = resource.filePublicId || extractPublicId(resource.fileUrl);
+  if (publicId) {
+    await destroyAsset(publicId, resource.fileResourceType || 'image');
+  }
   await resource.deleteOne();
 
   await User.updateOne(

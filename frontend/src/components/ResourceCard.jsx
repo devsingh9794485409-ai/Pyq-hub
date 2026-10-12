@@ -5,6 +5,7 @@ import { toggleUpvote, toggleBookmark, deleteResource, incrementDownload } from 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { timeAgo, TYPE_STYLES } from '../utils/format.js';
+import { getServerOrigin, getApiBaseUrl } from '../api/client.js';
 
 const ResourceCard = ({
   resource,
@@ -90,6 +91,14 @@ const ResourceCard = ({
     } catch { /* silent */ }
   };
 
+  const origin = getServerOrigin();
+  const apiBase = getApiBaseUrl();
+  const fileAccessUrl = resource.fileAccessUrl
+    ? (resource.fileAccessUrl.startsWith('http')
+        ? resource.fileAccessUrl
+        : `${origin}${resource.fileAccessUrl.startsWith('/') ? '' : '/'}${resource.fileAccessUrl}`)
+    : `${apiBase}/resources/${resource._id}/file`;
+
   const isPdf = resource.fileFormat === 'pdf' || resource.fileUrl?.endsWith('.pdf');
 
   return (
@@ -171,7 +180,7 @@ const ResourceCard = ({
       <div className="mt-3 flex gap-2">
         {/* Open / download */}
         <a
-          href={resource.fileUrl}
+          href={fileAccessUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={handleDownload}
@@ -243,23 +252,53 @@ const ResourceCard = ({
         >
           <div className="relative flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <p className="truncate text-sm font-semibold text-slate-800">{resource.title}</p>
-              <button
-                type="button"
-                onClick={() => setViewerOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                </svg>
-              </button>
+              <div className="min-w-0 flex-1 pr-3">
+                <p className="truncate text-sm font-semibold text-slate-800">{resource.title}</p>
+                <p className="text-xs text-slate-500">Secure Document Viewer</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={fileAccessUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleDownload}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h4a.75.75 0 0 1 0 1.5h-4Z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 0 0 1.06.053L16.5 4.44v2.81a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0 0 1.5h2.553l-9.162 8.193a.75.75 0 0 0-.053 1.06Z" clipRule="evenodd" />
+                  </svg>
+                  Open in New Tab
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setViewerOpen(false)}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <iframe
-              src={`${resource.fileUrl}#toolbar=1`}
+              src={`${fileAccessUrl}#toolbar=1`}
               title={resource.title}
               className="flex-1 w-full border-none"
               allow="fullscreen"
             />
+            <div className="border-t border-slate-100 bg-slate-50 px-4 py-2 text-center text-xs text-slate-500">
+              PDF preview not rendering?{' '}
+              <a
+                href={fileAccessUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleDownload}
+                className="font-medium text-brand-600 underline hover:text-brand-700"
+              >
+                Click here to open directly
+              </a>
+            </div>
           </div>
         </div>
       )}

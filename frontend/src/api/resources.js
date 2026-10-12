@@ -8,6 +8,7 @@ export const uploadResource = (formData, onProgress) =>
   client
     .post('/resources', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000, // 120s timeout specifically for file uploads
       onUploadProgress: (e) => {
         if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
       },

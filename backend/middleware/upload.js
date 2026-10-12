@@ -11,8 +11,8 @@ const ALLOWED_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
-// File size: 20 MB max (Phase 8)
-const MAX_FILE_SIZE = 20 * 1024 * 1024;
+// File size: 50 MB max
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 const storage = multer.memoryStorage();
 

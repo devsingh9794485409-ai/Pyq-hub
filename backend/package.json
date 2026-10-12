@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "seed": "node seed/seedSubjects.js"
+    "seed": "node seed/seedSubjects.js",
+    "seed:all": "node seed/seedAllSubjects.js",
+    "set-admin": "node scripts/setAdmin.js",
+    "repair-resources": "node scripts/repairResources.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

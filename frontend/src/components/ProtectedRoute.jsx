@@ -3,12 +3,13 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { FullPageLoader } from './ui/Loader.jsx';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) return <FullPageLoader label="Checking your session…" />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (adminOnly && !user.isAdmin) return <Navigate to="/" replace />;
   return children;
 };
 

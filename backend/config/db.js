@@ -2,14 +2,31 @@
 import mongoose from 'mongoose';
 
 export const connectDB = async () => {
-  if (!process.env.MONGO_URI) throw new Error('MONGO_URI is not set');
-  
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  if (!uri) {
+    throw new Error('Database connection failed: neither MONGODB_URI nor MONGO_URI is set.');
+  }
+
   mongoose.set('strictQuery', true);
-  const conn = await mongoose.connect(process.env.MONGO_URI, {
-    serverSelectionTimeoutMS: 10000,
+
+  mongoose.connection.on('error', (err) => {
+    console.error('❌ MongoDB runtime error:', err.message);
   });
-  console.log(`✅ MongoDB connected: ${conn.connection.host}`);
-  return conn;
+
+  mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️ MongoDB disconnected.');
+  });
+
+  try {
+    const conn = await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+    return conn;
+  } catch (err) {
+    console.error('❌ Failed to connect to MongoDB Atlas:', err.message);
+    throw err;
+  }
 };
 
 export const disconnectDB = async () => {

@@ -5,30 +5,39 @@ import Subject from '../models/Subject.js';
 import User from '../models/User.js';
 import ApiError from '../utils/ApiError.js';
 import asyncHandler from '../utils/asyncHandler.js';
-import { uploadBuffer, destroyAsset } from '../config/cloudinary.js';
+import cloudinary, { uploadBuffer, destroyAsset } from '../config/cloudinary.js';
 
 // Escape a string so it can be safely used in a RegExp (ReDoS protection)
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+// Extract Cloudinary public_id from a delivery URL if missing from record
+export const extractPublicId = (fileUrl) => {
+  if (!fileUrl || typeof fileUrl !== 'string') return null;
+  const match = fileUrl.match(/\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i);
+  return match ? match[1] : null;
+};
+
 const shape = (doc, userId) => ({
-  _id:           doc._id,
-  title:         doc.title,
-  description:   doc.description,
-  type:          doc.type,
-  year:          doc.year,
-  academicYear:  doc.academicYear,
-  category:      doc.category,
-  tags:          doc.tags ?? [],
-  fileUrl:       doc.fileUrl,
-  fileFormat:    doc.fileFormat,
-  fileSize:      doc.fileSize,
-  createdAt:     doc.createdAt,
-  subject:       doc.subject,
-  uploadedBy:    doc.uploadedBy,
-  upvoteCount:   doc.upvotes?.length ?? 0,
-  downloadCount: doc.downloadCount ?? 0,
-  hasUpvoted:    userId ? (doc.upvotes ?? []).some((id) => String(id) === String(userId)) : false,
-  isBookmarked:  false, // resolved separately when needed
+  _id:              doc._id,
+  title:            doc.title,
+  description:      doc.description,
+  type:             doc.type,
+  year:             doc.year,
+  academicYear:     doc.academicYear,
+  category:         doc.category,
+  tags:             doc.tags ?? [],
+  fileUrl:          doc.fileUrl,
+  fileAccessUrl:    `/api/resources/${doc._id}/file`,
+  fileFormat:       doc.fileFormat,
+  fileSize:         doc.fileSize,
+  fileResourceType: doc.fileResourceType ?? 'image',
+  createdAt:        doc.createdAt,
+  subject:          doc.subject,
+  uploadedBy:       doc.uploadedBy,
+  upvoteCount:      doc.upvotes?.length ?? 0,
+  downloadCount:    doc.downloadCount ?? 0,
+  hasUpvoted:       userId ? (doc.upvotes ?? []).some((id) => String(id) === String(userId)) : false,
+  isBookmarked:     false, // resolved separately when needed
 });
 
 // GET /api/resources
@@ -140,31 +149,49 @@ export const createResource = asyncHandler(async (req, res) => {
   if (!subjectDoc) throw ApiError.notFound('Subject not found');
 
   const safeName = title.trim().replace(/[^a-z0-9]+/gi, '-').slice(0, 60).toLowerCase();
-  const uploaded = await uploadBuffer(req.file.buffer, {
-    folder: `${process.env.CLOUDINARY_FOLDER || 'pyqhub'}/${subjectDoc.branch}/sem${subjectDoc.semester}`,
-    publicId: `${subjectDoc.code}-${type}-${safeName}-${Date.now()}`,
-  });
+  const isDoc = req.file.mimetype === 'application/msword' ||
+    req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const resourceType = isDoc ? 'raw' : (req.file.mimetype === 'application/pdf' ? 'image' : 'auto');
+
+  let uploaded;
+  try {
+    uploaded = await uploadBuffer(req.file.buffer, {
+      folder: `${process.env.CLOUDINARY_FOLDER || 'pyqhub'}/${subjectDoc.branch}/sem${subjectDoc.semester}`,
+      publicId: `${subjectDoc.code}-${type}-${safeName}-${Date.now()}`,
+      resource_type: resourceType,
+      timeout: 120000,
+    });
+  } catch (cloudErr) {
+    console.error('❌ Cloudinary upload error:', cloudErr);
+    if (cloudErr.http_code === 400 && cloudErr.message?.includes('File size too large')) {
+      throw ApiError.badRequest(
+        `Cloudinary storage limit reached: ${cloudErr.message}. The Cloudinary account Free plan caps individual files at 10 MB. A Cloudinary plan upgrade or account limit extension is required for larger files.`
+      );
+    }
+    throw new ApiError(cloudErr.http_code || 502, cloudErr.message || 'Cloudinary upload failed');
+  }
 
   let resource;
   try {
     resource = await Resource.create({
-      subject:      subjectDoc._id,
-      uploadedBy:   req.user._id,
+      subject:          subjectDoc._id,
+      uploadedBy:       req.user._id,
       type,
-      title:        title.trim(),
-      description:  description?.trim() || '',
-      year:         parsedYear,
-      academicYear: academicYear?.trim() || undefined,
-      category:     category || undefined,
-      tags:         parsedTags,
-      fileUrl:      uploaded.secure_url,
-      filePublicId: uploaded.public_id,
-      fileSize:     uploaded.bytes,
-      fileFormat:   uploaded.format,
+      title:            title.trim(),
+      description:      description?.trim() || '',
+      year:             parsedYear,
+      academicYear:     academicYear?.trim() || undefined,
+      category:         category || undefined,
+      tags:             parsedTags,
+      fileUrl:          uploaded.secure_url,
+      filePublicId:     uploaded.public_id,
+      fileSize:         uploaded.bytes,
+      fileFormat:       uploaded.format || (req.file.mimetype === 'application/pdf' ? 'pdf' : undefined),
+      fileResourceType: uploaded.resource_type || resourceType,
     });
     await User.findByIdAndUpdate(req.user._id, { $inc: { uploadsCount: 1 } });
   } catch (err) {
-    await destroyAsset(uploaded.public_id);
+    await destroyAsset(uploaded.public_id, uploaded.resource_type || resourceType);
     throw err;
   }
 
@@ -190,7 +217,10 @@ export const deleteResource = asyncHandler(async (req, res) => {
   if (!isOwner && !isAdmin) throw ApiError.forbidden('Not authorised to delete this resource');
 
   // Delete from Cloudinary
-  await destroyAsset(resource.filePublicId);
+  const publicId = resource.filePublicId || extractPublicId(resource.fileUrl);
+  if (publicId) {
+    await destroyAsset(publicId, resource.fileResourceType || 'image');
+  }
 
   // Remove resource
   await resource.deleteOne();
@@ -271,4 +301,55 @@ export const incrementDownload = asyncHandler(async (req, res) => {
   await User.updateOne({ _id: resource.uploadedBy }, { $inc: { downloadsReceived: 1 } });
 
   res.json({ success: true, downloadCount: resource.downloadCount });
+});
+
+// GET /api/resources/:id/file  — deliver or redirect to signed Cloudinary delivery URL
+export const getResourceFile = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) throw ApiError.badRequest('Invalid resource id');
+
+  const resource = await Resource.findById(id).select('+filePublicId');
+  if (!resource) throw ApiError.notFound('Resource not found');
+
+  let publicId = resource.filePublicId;
+  if (!publicId && resource.fileUrl) {
+    publicId = extractPublicId(resource.fileUrl);
+  }
+
+  if (!publicId) {
+    console.warn(`⚠️ Resource ${id} has no public_id. Falling back to direct fileUrl.`);
+    return res.redirect(302, resource.fileUrl);
+  }
+
+  const format = resource.fileFormat || (resource.fileUrl?.endsWith('.pdf') ? 'pdf' : undefined);
+  const resourceType = resource.fileResourceType || (format === 'doc' || format === 'docx' ? 'raw' : 'image');
+
+  try {
+    const signedUrl = cloudinary.utils.private_download_url(publicId, format || '', {
+      resource_type: resourceType,
+      type: 'upload',
+      expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour validity
+    });
+
+    if (req.query.json === 'true' || req.headers.accept === 'application/json') {
+      return res.json({ success: true, url: signedUrl });
+    }
+
+    return res.redirect(302, signedUrl);
+  } catch (err) {
+    console.error(`❌ Failed to generate signed URL for resource ${id}:`, err);
+    if (req.accepts('html')) {
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Failed to load document</title></head>
+        <body style="font-family:sans-serif;padding:3rem;text-align:center;color:#334155;">
+          <h2>Unable to generate secure download link</h2>
+          <p>Please check Cloudinary configuration or try again later.</p>
+        </body>
+        </html>
+      `);
+    }
+    throw new ApiError(500, 'Failed to generate secure document URL');
+  }
 });

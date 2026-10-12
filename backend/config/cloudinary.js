@@ -1,4 +1,5 @@
 // backend/config/cloudinary.js
+import 'dotenv/config';
 import { v2 as cloudinary } from 'cloudinary';
 
 cloudinary.config({
@@ -10,15 +11,30 @@ cloudinary.config({
 
 export const uploadBuffer = (buffer, opts = {}) =>
   new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: opts.folder || process.env.CLOUDINARY_FOLDER || 'pyqhub',
-        resource_type: 'auto',
-        public_id: opts.publicId,
-        overwrite: false,
-      },
-      (error, result) => (error ? reject(error) : resolve(result))
-    );
+    const resource_type = opts.resource_type || 'auto';
+    const uploadOptions = {
+      folder: opts.folder || process.env.CLOUDINARY_FOLDER || 'pyqhub',
+      resource_type,
+      public_id: opts.publicId,
+      overwrite: false,
+      timeout: opts.timeout || 120000,
+    };
+
+    // For large buffers (> 10MB), use upload_chunked_stream with 6MB chunks to avoid socket timeouts
+    const isLarge = buffer.length > 10 * 1024 * 1024;
+    if (isLarge) {
+      uploadOptions.chunk_size = 6000000;
+    }
+
+    const uploader = isLarge
+      ? cloudinary.uploader.upload_chunked_stream.bind(cloudinary.uploader)
+      : cloudinary.uploader.upload_stream.bind(cloudinary.uploader);
+
+    const stream = uploader(uploadOptions, (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    });
+
     stream.end(buffer);
   });
 

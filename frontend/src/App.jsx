@@ -41,7 +41,7 @@ function App() {
             <ProtectedRoute><SavedPapers /></ProtectedRoute>
           } />
           <Route path="/admin"   element={
-            <ProtectedRoute><AdminPanel /></ProtectedRoute>
+            <ProtectedRoute adminOnly><AdminPanel /></ProtectedRoute>
           } />
 
           {/* ── 404 ─────────────────────────────────────────────────── */}

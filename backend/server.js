@@ -3,6 +3,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import mongoose from 'mongoose';
 
 import { connectDB } from './config/db.js';
 import authRoutes     from './routes/authRoutes.js';
@@ -15,18 +16,61 @@ import { notFound, errorHandler } from './middleware/error.js';
 const app = express();
 
 // ── Security headers (Phase 9) ─────────────────────────────────────────────
-// Dynamically import helmet so the app doesn't crash if the package isn't
-// installed yet (it's an optional Phase 9 dep)
 try {
   const { default: helmet } = await import('helmet');
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })
+  );
 } catch {
   console.warn('⚠️  helmet not installed — run: npm install helmet');
 }
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ── CORS Configuration ─────────────────────────────────────────────────────
+const parseAllowedOrigins = () => {
+  const configured = (process.env.CLIENT_URL || '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  return new Set([
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    ...configured,
+  ]);
+};
+
+const allowedOrigins = parseAllowedOrigins();
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, curl, uptime monitors)
+    if (!origin) return callback(null, true);
+
+    const cleanOrigin = origin.replace(/\/+$/, '');
+    const isAllowed =
+      allowedOrigins.has(cleanOrigin) ||
+      allowedOrigins.has('*') ||
+      process.env.NODE_ENV !== 'production' ||
+      /\.vercel\.app$/.test(cleanOrigin);
+
+    if (isAllowed) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
 // ── Rate limiting (Phase 9) ────────────────────────────────────────────────
@@ -52,10 +96,33 @@ try {
   console.warn('⚠️  express-rate-limit not installed — run: npm install express-rate-limit');
 }
 
-// ── Health check ───────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, message: 'PYQHub API running', timestamp: Date.now() });
-});
+// ── Health check (Reports service & MongoDB status) ───────────────────────
+const healthCheckHandler = (_req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const isDbConnected = dbState === 1;
+  const dbStateMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+  };
+
+  const statusCode = isDbConnected ? 200 : 503;
+  res.status(statusCode).json({
+    success: isDbConnected,
+    status: isDbConnected ? 'healthy' : 'degraded',
+    service: 'PYQHub API',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    database: {
+      status: dbStateMap[dbState] || 'unknown',
+      readyState: dbState,
+    },
+  });
+};
+
+app.get('/health', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
 
 // ── API routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth',      authRoutes);
@@ -73,13 +140,22 @@ const PORT = process.env.PORT || 5000;
 const start = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server running on port ${PORT} (host: 0.0.0.0)`);
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err.message);
     process.exit(1);
   }
 };
+
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  process.exit(1);
+});
 
 start();
