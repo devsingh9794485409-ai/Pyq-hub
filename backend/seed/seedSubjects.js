@@ -10,47 +10,67 @@ import Subject from '../models/Subject.js';
  */
 const CSE_SUBJECTS = {
   1: [
-    { code: 'KAS101', name: 'Engineering Physics' },
-    { code: 'KAS103', name: 'Engineering Mathematics-I' },
-    { code: 'KEE101', name: 'Basic Electrical Engineering' },
-    { code: 'KCS101', name: 'Programming for Problem Solving' },
-    { code: 'KCE101', name: 'Engineering Graphics & Design' },
-    { code: 'KAS104', name: 'Communication Skills' },
+    { code: 'BAS101', name: 'Engineering Physics' },
+    { code: 'BAS103', name: 'Engineering Mathematics-I' },
+    { code: 'BEC101', name: 'Fundamentals of Electronics Engineering' },
+    { code: 'BME101', name: 'Fundamentals of Mechanical Engineering' },
+    { code: 'BAS105', name: 'Soft Skills' },
+    { code: 'BAS151', name: 'Engineering Physics Lab' },
+    { code: 'BEC151', name: 'Basic Electronics Engineering Lab' },
+    { code: 'BAS155', name: 'English Language Lab' },
+    { code: 'BWS151', name: 'Workshop Practice Lab' },
   ],
   2: [
-    { code: 'KAS202', name: 'Engineering Chemistry' },
-    { code: 'KAS203', name: 'Engineering Mathematics-II' },
-    { code: 'KME201', name: 'Basic Mechanical Engineering' },
-    { code: 'KCS201', name: 'Python Programming' },
-    { code: 'KAS204', name: 'Environment & Ecology' },
+    { code: 'BAS202', name: 'Engineering Chemistry' },
+    { code: 'BAS203', name: 'Engineering Mathematics-II' },
+    { code: 'BEE201', name: 'Fundamentals of Electrical Engineering' },
+    { code: 'BCS201', name: 'Programming for Problem Solving' },
+    { code: 'BAS204', name: 'Environment and Ecology' },
+    { code: 'BAS252', name: 'Engineering Chemistry Lab' },
+    { code: 'BEE251', name: 'Basic Electrical Engineering Lab' },
+    { code: 'BCS251', name: 'Programming for Problem Solving Lab' },
+    { code: 'BCS252', name: 'Engineering Graphics & Design Lab' },
+    { code: 'BVA251', name: 'Sports and Yoga' },
   ],
   3: [
-    { code: 'KCS301', name: 'Data Structures & Algorithms' },
-    { code: 'KCS302', name: 'Discrete Structures & Theory of Logic' },
-    { code: 'KCS303', name: 'Computer Organization & Architecture' },
-    { code: 'KCS304', name: 'Object Oriented Programming with Java' },
-    { code: 'KAS301', name: 'Technical Communication' },
+    { code: 'BOE303', name: 'Material Science' },
+    { code: 'BAS301', name: 'Technical Communication' },
+    { code: 'BCS301', name: 'Data Structure' },
+    { code: 'BCS302', name: 'Computer Organization and Architecture' },
+    { code: 'BCS303', name: 'Discrete Structures & Theory of Logic' },
+    { code: 'BCC301', name: 'Cyber Security' },
+    { code: 'BCS351', name: 'Data Structure Lab' },
+    { code: 'BCS352', name: 'Computer Organization and Architecture Lab' },
+    { code: 'BCS353', name: 'Web Designing Workshop' },
+    { code: 'BCC351', name: 'Internship Assessment / Mini Project' },
   ],
   4: [
-    { code: 'KCS401', name: 'Operating Systems' },
-    { code: 'KCS402', name: 'Design & Analysis of Algorithms' },
-    { code: 'KCS403', name: 'Theory of Computation' },
-    { code: 'KCS404', name: 'Database Management Systems' },
-    { code: 'KCS405', name: 'Microprocessor & Microcontrollers' },
+    { code: 'BAS403', name: 'Mathematics-IV' },
+    { code: 'BVE401', name: 'Universal Human Values and Professional Ethics' },
+    { code: 'BCS401', name: 'Operating System' },
+    { code: 'BCS402', name: 'Theory of Automata and Formal Languages' },
+    { code: 'BCS403', name: 'Object Oriented Programming with Java' },
+    { code: 'BCC402', name: 'Python Programming' },
+    { code: 'BCS451', name: 'Operating System Lab' },
+    { code: 'BCS452', name: 'Object Oriented Programming with Java Lab' },
+    { code: 'BCS453', name: 'Cyber Security Workshop' },
+    { code: 'BVA451', name: 'Sports and Yoga - II' },
   ],
   5: [
-    { code: 'KCS501', name: 'Compiler Design' },
-    { code: 'KCS502', name: 'Computer Networks' },
-    { code: 'KCS503', name: 'Web Technologies' },
-    { code: 'KCS504', name: 'Software Engineering' },
-    { code: 'KCS505', name: 'Computer Graphics' },
+    { code: 'BCS501', name: 'Web Technology' },
+    { code: 'BCS502', name: 'Design and Analysis of Algorithms (DAA)' },
+    { code: 'BCS503', name: 'Object-Oriented System Design with C++ (OOSD)' },
+    { code: 'BCS504', name: 'Application of Soft Computing (ASC)' },
+    { code: 'BCS505', name: 'Database Management Systems (DBMS)' },
+    { code: 'BVE501', name: 'Constitution of India (COI)' },
   ],
   6: [
-    { code: 'KCS601', name: 'Artificial Intelligence' },
-    { code: 'KCS602', name: 'Machine Learning' },
-    { code: 'KCS603', name: 'Cloud Computing' },
-    { code: 'KCS604', name: 'Data Warehousing & Data Mining' },
-    { code: 'KCS605', name: 'Mobile Application Development' },
+    { code: 'BCS601', name: 'Compiler Design (CD)' },
+    { code: 'BCS602', name: 'Computer Networks (CNW)' },
+    { code: 'BVE601', name: 'Essence of Traditional Knowledge (EITK)' },
+    { code: 'BCS603', name: 'Blockchain Architecture and Design (BCAD)' },
+    { code: 'BCS604', name: 'Software Engineering (SE)' },
+    { code: 'BVE602', name: 'Idea to Business Model (IBM)' },
   ],
   7: [
     { code: 'KCS701', name: 'Cryptography & Network Security' },
@@ -73,10 +93,16 @@ const run = async () => {
     subjects.map((s) => ({ ...s, branch, semester: Number(semester) }))
   );
 
-  await Subject.deleteMany({ branch });
-  const inserted = await Subject.insertMany(docs);
+  const bulkOps = docs.map((s) => ({
+    updateOne: {
+      filter: { branch: s.branch, semester: s.semester, code: s.code },
+      update: { $set: s },
+      upsert: true,
+    },
+  }));
 
-  console.log(`🌱 Seeded ${inserted.length} subjects for branch ${branch}`);
+  const res = await Subject.bulkWrite(bulkOps, { ordered: false });
+  console.log(`🌱 Safe Seeded CSE: matched ${res.matchedCount}, upserted ${res.upsertedCount}, modified ${res.modifiedCount}`);
   await mongoose.disconnect();
   process.exit(0);
 };
